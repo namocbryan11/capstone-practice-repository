@@ -91,7 +91,9 @@ from googletrans import Translator
 from nltk.text import TextCollection
 from textblob.classifiers import NaiveBayesClassifier
 import enchant
-from array import * 
+from array import *
+
+
 
 app = Flask(__name__)
 
