@@ -1,97 +1,22 @@
-##train data for the sentiment analysis
-train = [
-('What an amazing weather.', 'satisfied'),
-('this is an amazing idea!', 'satisfied'),
-('feel very good about these ideas.', 'satisfied'),
-('this is my best performance.', 'satisfied'),
-("what an awesome view", 'satisfied'),
-('thank you so much', 'satisfied'),
-('Thanks','satisfied'),
-('Thank','satisfied'),
-('I hate this place', 'unsatisfied'),
-('am tired of this stuff.', 'slightly unsatisfied'),
-('he is my sworn enemy!', 'unsatisfied'),
-('my friends is horrible.', 'unsatisfied'),
-('she do not know how to', 'unsatisfied'),
-('she is beautiful','satisfied'),
-('she is ugly', 'unsatisfied'),
-('very few give', 'unsatisfied'),
-('too big to give','satisfied'),
-("rarely enter",'unsatisfied'),
-('bati mutudlo','unsatisfied'),
-('kamao mutudlo','satisfied'),
-('always present','satisfied'),
-('always absent','unsatisfied'),
-('go ahead and be absent','unsatisfied'),  
-('too much to do', 'unsatisfied'),
-('gives us time to do', 'satisfied'),
-('she comes early', 'satisfied'), 
-('mostly comes early', 'slight satisfied'),
-('sometimes late', 'slightly unsatisfied'),
-('she comes late', 'unsatisfied'),
-('she is late sometimes', 'slightly unsatisfied'),
-('Ramesh is a friend of mine.', 'slightly satisfied'),
-('she is sometimes not in the mood', 'slightly satisfied'),
-('gwapa','satisfied'),
-('feel and nawng','unsatisfied'),
-('he is a good and very kind','satisfied'),
-('bad', 'unsatisfied'),
-('good','satisfied'),
-('little will give a','unsatisfied'),
-('size and grade','satisfied'),
-('not going on and absent','unsatisfied'),
-('not effective','unsatisfied'),
-('ineffective', 'unsatisfied'),
-('They are not doing their job','unsatisfied'),
-('effective', 'satisfied'),
-('like','satisfied'),
-('I dont like you','unsatisfied'),
-('monetary','unsatisfied'),
-('no obvious','unsatisfied'),
-('clear','satisfied'),
-('putang ina','unsatisfied'),
-('stupid','unsatisfied'),
-('bogo', 'unsatisfied'),
-('bright mutudlo','satisfied'),
-('fist find a way','satisfied'),
-('curiosity finds a way','satisfied'),
-('boutan','satisfied'),
-('nothing', 'neutral'),
-('I don\'t know what to say', 'neutral'),
-('I dont know what to say', 'neutral'),
-('no comment','neutral'),
-('ambot', 'neutral'),
-('wa lang','neutral'),
-('Don\'t Know Mind','unsatisfied'),
-('Knowledge Mutual','satisfied'),
-('Slightly grade and grade','unsatisfied'),
-('great grade and grade','satisfied'),
-('Bati Mutut','unsatisfied'),
-('nice to get','satisfied'),
-('I like you','satisfied'),
-('licks and fingers','satisfied')
- ]
-test = [
-('the food was great.', 'satisfied'),
-("I feel amazing!", 'satisfied'),
-('follows schedule','satisfied'),
 
-('I do not want to live anymore', 'unsatisfied'),
-('she is not beautiful','unsatisfied'),
-("I ain't feeling dandy today.", 'unsatisfied'),
-
-('I have nothing to say', 'neutral')
-]
-
-from flask import Flask, redirect, render_template, request, url_for
+from flask import Flask, redirect, render_template, request, url_for,json,jsonify
 from flask_mysqldb import MySQL
 from textblob import TextBlob
+import numpy as np
+import pandas as pd
 from textblob.sentiments import NaiveBayesAnalyzer
 from googletrans import Translator
+from typing import Final
+import nltk
 from nltk.text import TextCollection
+nltk.download('vader_lexicon')
+from nltk.tokenize import word_tokenize, RegexpTokenizer
+from nltk.sentiment.vader import SentimentIntensityAnalyzer
 from textblob.classifiers import NaiveBayesClassifier
 import enchant
+from werkzeug.exceptions import RequestEntityTooLarge
 from array import *
+import string
 
 
 app = Flask(__name__)
@@ -102,6 +27,115 @@ app.config['MYSQL_PASSWORD'] = '';
 app.config['MYSQL_DB'] = 'isent';
 
 mysql = MySQL(app)
+
+#this is to modify the SentimentIntensityAnalyzer
+new_vader ={
+    'strict': -4,
+    'absent': -5,
+    'high': 1,
+    'understands': 2,
+    'understand': 2,
+    'late': -4,
+    'on time': 2,
+    'ontime': 2,
+    'on-time': 2,
+    'approachable': 4,
+    'without': -2,
+    
+}
+#ALGORITHM 1
+# function to print sentiments 
+# of the sentence. 
+def sentiment_scores(sentence): 
+    # Create a SentimentIntensityAnalyzer object. 
+    sid_obj = SentimentIntensityAnalyzer() 
+    sid_obj.lexicon.update(new_vader)
+
+    # polarity_scores method of SentimentIntensityAnalyzer 
+    # oject gives a sentiment dictionary. 
+    # which contains pos, neg, neu, and compound scores. 
+    sentiment_dict = sid_obj.polarity_scores(sentence) 
+    print("word: ", sentence)
+    print("Overall sentiment dictionary is : ", sentiment_dict) 
+    print("sentence was rated as ", sentiment_dict['neg']*100, "% Negative") 
+    print("sentence was rated as ", sentiment_dict['neu']*100, "% Neutral") 
+    print("sentence was rated as ", sentiment_dict['pos']*100, "% Positive") 
+  
+    print("Sentence Overall Rated As", end = " ") 
+    
+    #tweak the downpoints of the vader
+    #check if "no" exist in the comment
+    hasNo = False
+    for word in sentence.split():
+        if word == "no":
+            hasNo = True
+            break
+        
+    if(hasNo
+    or "haha" in sentence):
+        return NB_Classify(sentence)
+    # decide sentiment as positive, negative and neutral 
+    elif sentiment_dict['compound'] >= 0.05 : 
+        return "positive" 
+  
+    elif sentiment_dict['compound'] <= - 0.05 : 
+        return "negative"
+
+    else :
+        return NB_Classify(sentence)
+
+def FinalSentiment(sentence): 
+  
+    # Create a SentimentIntensityAnalyzer object. 
+    sid_obj = SentimentIntensityAnalyzer() 
+    sid_obj.lexicon.update(new_vader) 
+    sentiment_dict = sid_obj.polarity_scores(sentence) 
+
+    # decide sentiment as positive, negative and neutral 
+    if sentiment_dict['compound'] >= 0.05 : 
+        return "positive"
+  
+    elif sentiment_dict['compound'] <= - 0.05 : 
+        return "negative"
+  
+    else :
+        return NB_Classify(sentence)
+
+#reading the dataset
+data = pd.read_csv('Comments.csv')
+print("number of data ", data.shape)
+training = data[['comment','label']]
+
+#clean the dataset, remove words that is in the stopwords
+#function for data cleaning
+# Stopwords
+stopwords = set(line.strip() for line in open('customized_stopwords.txt'))
+stopwords = stopwords.union(set(['mr','mrs','one','two','said']))
+
+def data_cleaning(raw_data):
+    raw_data = raw_data.translate(str.maketrans('', '', string.punctuation + string.digits))
+    words = raw_data.lower().split()
+    stops = set(stopwords)
+    useful_words = [w for w in words if not w in stops]
+    return(" ".join(useful_words))
+
+training['comment']=training['comment'].apply(data_cleaning)
+
+#convert comments and label dataFrame into list
+list_commentsAndLabel = training.values.tolist()
+
+classifier = NaiveBayesClassifier(list_commentsAndLabel)
+
+def NB_Classify(comment):
+    comment_blob = TextBlob(comment, classifier=classifier)
+
+    prob = classifier.prob_classify(comment)
+    print("")
+    print("positive",round(prob.prob("positive"),2))
+    print("negative", round(prob.prob("negative"),2))
+    print("neutral",round(prob.prob("neutral"),2))
+
+    return comment_blob.classify()
 
 @app.route("/login.html", methods=["POST","GET"])
 def login():
@@ -131,7 +165,7 @@ def evaluate():
 
 	# get comment and sentiment from db
 	# changed: satisfied -> positive | unsatisfied -> negative
-	cur.execute("SELECT comment, IF(sentiment = 'satisfied', 'Positive', 'Negative') from evaluation")
+	cur.execute("SELECT comment,sentiment from evaluation")
 	comments = cur.fetchall()
 
 	# get total number of respondents
@@ -164,6 +198,11 @@ def evaluate():
 	cur.execute("select section1, section2, section3, section4, section5, (select count(id) from evaluation) as totalnum from evaluation")
 	evalsecans = cur.fetchall()
 
+
+
+
+
+
 	cur.close()
 
 	if request.method == 'POST':
@@ -195,7 +234,7 @@ def evaluate():
 		# code for the translation and getting sentiment analysis
 		comment = request.form["txtcomment"]
 
-		cl = NaiveBayesClassifier(train)
+		cl = NaiveBayesClassifier(training)
 		translator = Translator()
 
 		# Lets test the accuracy of the classifier
@@ -304,7 +343,6 @@ def evaluation():
 
 	cur.close()
 
-
 	if request.method == 'POST':
 		#Declaring variables for list to store rating in each section
 		sec1_rating	= []
@@ -330,45 +368,10 @@ def evaluation():
 
 		#code for the translation and getting sentiment analysis
 		comment = request.form["txtcomment"]
+		comment = comment.replace("miss","")
 
+		result = sentiment_scores(comment)
 
-		cl = NaiveBayesClassifier(train)
-		translator = Translator()
-
-		# Lets test the accuracy of the classifier
-		#print ("training set accuracy : ", cl.accuracy(train))
-		#print ("test set accuracy     : ", cl.accuracy(test))
-		if (len(comment) == 0):
-			result = "neutral"
-
-		else:
-		    translated = translator.translate(comment, dest="en")
-
-	     	#check if the word exist
-		    count_string = (len(translated.text.strip().split(" ")))
-
-		    if (count_string <= 1):
-		          if(count_string == 0):
-		               result = "neutral"
-		          elif(count_string == 1):
-		               d = enchant.Dict("en_US")
-		               check_word = d.check(translated.text)
-
-		               #counter number of letters (own logic (there is no sentimental word that has
-		               # 1 or 2 letters only))
-		               if(len(translated.text) <= 2):
-		                    result="neutral"
-		               #if the word exist then classify else neutral
-		               elif(check_word):
-		                     result = cl.classify(translated.text)
-		               else:
-		                    result="neutral"
-
-
-		    else:
-		          result = cl.classify(translated.text)
-
-		
 		try:       
 			cur = mysql.connection.cursor()
 			#converting list into string
@@ -384,7 +387,7 @@ def evaluation():
 			cur.execute(sql,val)
 			mysql.connection.commit()
 			cur.close()
-			return f'<h1>Successfully saved!</h1>'
+			return redirect(url_for("evaluate"))
 
 		except Exception as exp:
 			return f'<h1>{exp}</h1>'

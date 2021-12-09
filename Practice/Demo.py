@@ -1,6 +1,7 @@
 
 from flask import Flask, redirect, render_template, request, url_for,json,jsonify
 from flask_mysqldb import MySQL
+from numpy.core.numeric import outer
 from textblob import TextBlob
 import numpy as np
 import pandas as pd
@@ -16,6 +17,7 @@ from textblob.classifiers import NaiveBayesClassifier
 import enchant
 from werkzeug.exceptions import RequestEntityTooLarge
 from array import *
+import string
 
 
 app = Flask(__name__)
@@ -39,52 +41,58 @@ new_vader ={
     'ontime': 2,
     'on-time': 2,
     'approachable': 4,
-    'without': -2,
-    
+    'without': -2,   
 }
+output_list =[]
 #ALGORITHM 1
 # function to print sentiments 
 # of the sentence. 
-def sentiment_scores(sentence): 
-    # Create a SentimentIntensityAnalyzer object. 
-    sid_obj = SentimentIntensityAnalyzer() 
-    sid_obj.lexicon.update(new_vader)
+def sentiment_scores(sentence):
+	# Create a SentimentIntensityAnalyzer object. 
+	sid_obj = SentimentIntensityAnalyzer() 
+	sid_obj.lexicon.update(new_vader)
 
-    # polarity_scores method of SentimentIntensityAnalyzer 
-    # oject gives a sentiment dictionary. 
-    # which contains pos, neg, neu, and compound scores. 
-    sentiment_dict = sid_obj.polarity_scores(sentence) 
-    print("word: ", sentence)
-    print("Overall sentiment dictionary is : ", sentiment_dict) 
-    print("sentence was rated as ", sentiment_dict['neg']*100, "% Negative") 
-    print("sentence was rated as ", sentiment_dict['neu']*100, "% Neutral") 
-    print("sentence was rated as ", sentiment_dict['pos']*100, "% Positive") 
-  
-    print("Sentence Overall Rated As", end = " ") 
-    
-    #tweak the downpoints of the vader
-    #check if "no" exist in the comment
-    hasNo = False
-    for word in sentence.split():
-        if word == "no":
-            hasNo = True
-            break
-        
-    if(hasNo
-    or "n't" in sentence
-    or "haha" in sentence
-    or "miss" in sentence
-    or "absent" in sentence):
-        return NB_Classify(sentence)
-    # decide sentiment as positive, negative and neutral 
-    elif sentiment_dict['compound'] >= 0.05 : 
-        return "positive" 
-  
-    elif sentiment_dict['compound'] <= - 0.05 : 
-        return "negative"
+	# polarity_scores method of SentimentIntensityAnalyzer 
+	# oject gives a sentiment dictionary. 
+	# which contains pos, neg, neu, and compound scores. 
+	sentiment_dict = sid_obj.polarity_scores(sentence) 
 
-    else :
-        return NB_Classify(sentence)
+	print("word: ", sentence)
+	print("Overall sentiment dictionary is : ", sentiment_dict) 
+	print("sentence was rated as ", sentiment_dict['neg']*100, "% Negative") 
+	print("sentence was rated as ", sentiment_dict['neu']*100, "% Neutral") 
+	print("sentence was rated as ", sentiment_dict['pos']*100, "% Positive")
+	print("Sentence Overall Rated As", end = " ") 
+
+	#reset the output_list
+	output_list=[]
+	#get the positive,neutral and negative values
+	output_list.append(sentiment_dict['pos']*100)
+	output_list.append(sentiment_dict['neu']*100)
+	output_list.append(sentiment_dict['neg']*100)
+
+	#tweak the downpoints of the vader
+	#check if "no" exist in the comment
+	hasNo = False
+	for word in sentence.split():
+		if word == "no":
+			hasNo = True
+			break
+		
+	if(hasNo
+	or "haha" in sentence):
+		return NB_Classify(sentence)
+	# decide sentiment as positive, negative and neutral 
+	elif sentiment_dict['compound'] >= 0.05 :
+		output_list.append("positive") 
+		return output_list
+
+	elif sentiment_dict['compound'] <= - 0.05 : 
+		output_list.append("negative") 
+		return output_list
+
+	else :
+		return NB_Classify(sentence)
 
 def FinalSentiment(sentence): 
   
@@ -107,21 +115,41 @@ def FinalSentiment(sentence):
 data = pd.read_csv('Comments.csv')
 print("number of data ", data.shape)
 training = data[['comment','label']]
+
+#clean the dataset, remove words that is in the stopwords
+#function for data cleaning
+# Stopwords
+stopwords = set(line.strip() for line in open('customized_stopwords.txt'))
+stopwords = stopwords.union(set(['mr','mrs','one','two','said']))
+
+def data_cleaning(raw_data):
+    raw_data = raw_data.translate(str.maketrans('', '', string.punctuation + string.digits))
+    words = raw_data.lower().split()
+    stops = set(stopwords)
+    useful_words = [w for w in words if not w in stops]
+    return(" ".join(useful_words))
+
+training['comment']=training['comment'].apply(data_cleaning)
+
 #convert comments and label dataFrame into list
 list_commentsAndLabel = training.values.tolist()
 
 classifier = NaiveBayesClassifier(list_commentsAndLabel)
 
 def NB_Classify(comment):
-    comment_blob = TextBlob(comment, classifier=classifier)
+	comment_blob = TextBlob(comment, classifier=classifier)
 
-    prob = classifier.prob_classify(comment)
-    print("")
-    print("positive",round(prob.prob("positive"),2))
-    print("negative", round(prob.prob("negative"),2))
-    print("neutral",round(prob.prob("neutral"),2))
+	prob = classifier.prob_classify(comment)
+	print("")
+	print("positive",round(prob.prob("positive"),2))
+	print("negative", round(prob.prob("negative"),2))
+	print("neutral",round(prob.prob("neutral"),2))
 
-    return comment_blob.classify()
+	output_list.append(round(prob.prob("positive"),2))
+	output_list.append(round(prob.prob("neutral"),2))
+	output_list.append(round(prob.prob("negative"),2))
+	output_list.append(comment_blob.classify())
+	return output_list
 
 @app.route("/login.html", methods=["POST","GET"])
 def login():
@@ -151,7 +179,7 @@ def evaluate():
 
 	# get comment and sentiment from db
 	# changed: satisfied -> positive | unsatisfied -> negative
-	cur.execute("SELECT comment,sentiment from evaluation")
+	cur.execute("SELECT comment,pos,neu,neg,sentiment from evaluation")
 	comments = cur.fetchall()
 
 	# get total number of respondents
@@ -184,11 +212,6 @@ def evaluate():
 	cur.execute("select section1, section2, section3, section4, section5, (select count(id) from evaluation) as totalnum from evaluation")
 	evalsecans = cur.fetchall()
 
-
-
-
-
-
 	cur.close()
 
 	if request.method == 'POST':
@@ -220,7 +243,7 @@ def evaluate():
 		# code for the translation and getting sentiment analysis
 		comment = request.form["txtcomment"]
 
-		cl = NaiveBayesClassifier(train)
+		cl = NaiveBayesClassifier(training)
 		translator = Translator()
 
 		# Lets test the accuracy of the classifier
@@ -354,9 +377,15 @@ def evaluation():
 
 		#code for the translation and getting sentiment analysis
 		comment = request.form["txtcomment"]
+		comment = comment.replace("miss","")
 
 		result = sentiment_scores(comment)
-
+		pos_val = float(result[0])
+		neu_val = float(result[1])
+		neg_val = float(result[2])
+		sentiment = result[3]
+		
+		print(type(pos_val),type(neu_val),type(neg_val))
 		try:       
 			cur = mysql.connection.cursor()
 			#converting list into string
@@ -366,13 +395,13 @@ def evaluation():
 			sec4_string = ','.join(sec4_rating) 
 			sec5_string = ','.join(sec5_rating)    
 
-			sql = "INSERT INTO evaluation (idteacher,idstudent,section1,section2,section3,section4,section5,comment,sentiment)\
-			 VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s);"
-			val = ("18013672","18013672",sec1_string,sec2_string,sec3_string,sec4_string,sec5_string,comment,result)
+			sql = "INSERT INTO evaluation (idteacher,idstudent,section1,section2,section3,section4,section5,pos,neu,neg,comment,sentiment)\
+			 VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s);"
+			val = ("18013672","18013672",sec1_string,sec2_string,sec3_string,sec4_string,sec5_string,pos_val,neu_val,neg_val,comment,sentiment)
 			cur.execute(sql,val)
 			mysql.connection.commit()
 			cur.close()
-			return f'<h1>Successfully saved!\n{comment}\n{result}</h1>'
+			return redirect(url_for("evaluate"))
 
 		except Exception as exp:
 			return f'<h1>{exp}</h1>'
