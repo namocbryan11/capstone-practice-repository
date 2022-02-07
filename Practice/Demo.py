@@ -47,6 +47,7 @@ output_list =[]
 #ALGORITHM 1
 # function to print sentiments 
 # of the sentence. 
+# Getting sentiment scores using the VADER
 def sentiment_scores(sentence):
 	# Create a SentimentIntensityAnalyzer object. 
 	sid_obj = SentimentIntensityAnalyzer() 
@@ -179,8 +180,12 @@ def evaluate():
 
 	# get comment and sentiment from db
 	# changed: satisfied -> positive | unsatisfied -> negative
-	cur.execute("SELECT comment,pos,neu,neg,sentiment from evaluation")
+	cur.execute("SELECT comment,pos,neu,neg,sentiment,com from evaluation")
 	comments = cur.fetchall()
+
+	#get the average of compound values
+	cur.execute("SELECT AVG(com) from evaluation LIMIT 1")
+	comAverage = cur.fetchall()
 
 	# get total number of respondents
 	cur.execute("select count(id) as totalnum from evaluation")
@@ -310,6 +315,7 @@ def evaluate():
 	#		lensectionsleft = len(sectionsleft),
 	#		lensectionsright = len(sectionsright))
 
+	
 	else:
 		return render_template("teachers_evaluation.html",
 							   section1=section1, section2=section2,
@@ -318,6 +324,7 @@ def evaluate():
 							   section4=section4, lensec4=len(section4),
 							   section5=section5, lensec5=len(section5),
 							   datacomments = comments,
+							   comAverage = comAverage[0],
 							   countrespondents = numofrespondents,
 							   evaluationsec1 = evalsec1,
 							   lenevalsec1 = len(evalsec1),

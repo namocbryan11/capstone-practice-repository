@@ -276,8 +276,8 @@
 					
 					<!-- GETTING AVG PER SECTION -->
 					<!-- TOTAL SUM OF RATE PER NUM IN SECTION / TOTAL NUMBER OF QUESTIONS -->	
-					{{ "%.1f"|format(secavg.value/counter.value) }}
-					{% set secrateavg = "%.1f"|format(secavg.value/counter.value)|float %}
+					{{ "%.2f"|format(secavg.value/counter.value) }}
+					{% set secrateavg = "%.2f"|format(secavg.value/counter.value)|float %}
 
 					</td>
 					<td class="rates" id="rate" style="text-align: center;" colspan="100" bgcolor="#ccddff"> 				
@@ -312,25 +312,90 @@
 					<td class="sentimentValues"> <b> pos </b></td>
 					<td class="sentimentValues"> <b> neu </b></td>
 					<td class="sentimentValues"> <b> neg </b></td>
-					<td class="sentimentValues"> <b> Sentiment </b></td>
+					<td class="sentimentValues"> <b> com </b></td>
+					<td class="sentimentValues"> <b> classification </b></td>
 				</tr>
 				{% for row in datacomments %}
 				<tr class="sectiondata">
-					<td class="scenario"> {{row.0}}</td>
-					<td class="sentimentValues">{{row.1}}</td>
-					<td class="sentimentValues">{{row.2}}</td>
-					<td class="sentimentValues">{{row.3}}</td>
+					<td class="scenario"> {{"%.2f"|format(row.0|float)}}</td>
+					<td class="sentimentValues">{{"%.2f"|format(row.1|float)}}</td>
+					<td class="sentimentValues">{{"%.2f"|format(row.2|float)}}</td>
+					<td class="sentimentValues">{{"%.2f"|format(row.3|float)}}</td>
+					<td class="sentimentValues">{{"%.2f"|format(row.5|float)}}</td>
 					<td 
 					class="sentimentValues"
 					colspan="200">
 					{{row.4}}
 					</td>
+					
 				</tr>
 				{% endfor %}
+				<tr class="scenario" bgcolor="#ccddff">
+					<td class="scenario" bgcolor="#ccddff"> <b>Comment Average</b></td>
+					<td class="scenario" bgcolor="#ccddff"></td>
+					<td class="scenario" bgcolor="#ccddff"></td>
+					<td class="scenario" bgcolor="#ccddff"></td>
+					<td class="scenario" bgcolor="#ccddff"></td>
+					<td 
+					class="scenario" 
+					bgcolor="#ccddff" 
+					colspan="200" 
+					style="text-align: left; padding-left: 25px;">
+						<b>1.67</b>
+					</td>
+				</tr>
 			</tbody>
 		</table>
 	</div>
+</div>
 
+<!--Table for overall feedback average-->
+<div id="section6" class="sections">
+	<table id="section">
+		<tbody>
+			<tr class="sectioncolumn" >
+				<td > <b> EVALUATION SECTIONS </b></td>
+				<td class="sentimentValues"> <b> Average </b></td>
+				<td class="sentimentValues"> <b> Status </b></td>
+			</tr>
+			<tr class="sectiondata">
+				<td class="scenario"> Section 1 </td>
+				<td class="sentimentValues"> 4.92 </td>
+				<td class="sentimentValues"> Excellent </td>
+			</tr>
+			<tr class="sectiondata">
+				<td class="scenario"> Section 2 </td>
+				<td class="sentimentValues"> 5.00 </td>
+				<td class="sentimentValues"> Excellent </td>
+			</tr>
+			<tr class="sectiondata">
+				<td class="scenario"> Section 3 </td>
+				<td class="sentimentValues"> 5.00 </td>
+				<td class="sentimentValues"> Excellent </td>
+			</tr>
+			<tr class="sectiondata">
+				<td class="scenario"> Section 4 </td>
+				<td class="sentimentValues"> 5.00 </td>
+				<td class="sentimentValues"> Excellent </td>
+			</tr>
+			<tr class="sectiondata">
+				<td class="scenario"> Section 5 </td>
+				<td class="sentimentValues"> 4.96 </td>
+				<td class="sentimentValues"> Excellent </td>
+			</tr>
+			<tr class="sectiondata">
+				<td class="scenario"> Comment </td>
+				<td class="sentimentValues"> 1.67 </td>
+				<td class="sentimentValues"> Needs improvement </td>
+			</tr>
+			<tr>
+				<td class="scenario" bgcolor="#ccddff"><b>OVERALL EVALUATION AVERAGE</b></td>
+				<td class="sentimentValues" bgcolor="#ccddff"><b>4.43</b></td>
+				<td class="sentimentValues" bgcolor="#ccddff"><b>Excellent</b></td>
+			</tr>
+		</tbody>
+	</table>
+</div>
 </div>
 
 <!-- 
