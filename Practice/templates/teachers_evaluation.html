@@ -317,7 +317,7 @@
 				</tr>
 				{% for row in datacomments %}
 				<tr class="sectiondata">
-					<td class="scenario"> {{"%.2f"|format(row.0|float)}}</td>
+					<td class="scenario"> {{row.0}}</td>
 					<td class="sentimentValues">{{"%.2f"|format(row.1|float)}}</td>
 					<td class="sentimentValues">{{"%.2f"|format(row.2|float)}}</td>
 					<td class="sentimentValues">{{"%.2f"|format(row.3|float)}}</td>
